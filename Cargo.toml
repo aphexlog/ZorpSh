@@ -2,5 +2,16 @@
 name = "zorpsh"
 version = "0.1.0"
 edition = "2021"
+authors = ["aphexlog <aphexlog@gmail.com>"]
+description = "ZorpShell is a shell that is designed to be a drop-in replacement for Zsh."
+license = "MIT"
+repository = "https://github.com/aphexlog/ZorpSh"
+readme = "README.md"
+keywords = ["zorpsh", "shell", "zorp", "zsh", "zorpshell"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "zorpsh"
+path = "src/main.rs"
 
 [dependencies]
