@@ -1,6 +1,6 @@
 [package]
 name = "zorpsh"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["aphexlog <aphexlog@gmail.com>"]
 description = "ZorpShell is a shell that is designed to be a drop-in replacement for Zsh."
@@ -15,3 +15,7 @@ name = "zorpsh"
 path = "src/main.rs"
 
 [dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde_json = "1.0"
+rustyline = "12.0.0"
