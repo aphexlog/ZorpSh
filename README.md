@@ -13,16 +13,35 @@ ZorpSh is a custom REPL (Read-Eval-Print Loop) shell that provides command-line 
 - Distinctive space-themed interface
 - Lightweight and fast operation
 
-## Getting Started
+## Installation
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install) - Install with `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+
+### From crates.io (Recommended)
+
+ZorpSh is now available as an official package on crates.io:
+
+```bash
+# Install directly from crates.io
+cargo install zorpsh
+
+# After installation, simply run:
+zorpsh
+```
+
+### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/zorphsh.git
+git clone https://github.com/aphexlog/ZorpSh.git
+cd ZorpSh
 
 # Build and run
 cargo run
 
-# Or install it
+# Or install from local source
 cargo install --path .
 ```
 
@@ -31,10 +50,13 @@ cargo install --path .
 Once running, ZorpSh provides a prompt where you can enter commands:
 
 ```
-ZorpSh> help
-ZorpSh> cd /some/directory
-ZorpSh> ls
+ZorpSh> help                   # Display available commands
+ZorpSh> cd /some/directory     # Change directory
+ZorpSh> ls                     # List files
+ZorpSh> exit                   # Exit the shell
 ```
+
+ZorpSh supports standard shell commands and maintains command history between sessions.
 
 ## Development
 
@@ -48,4 +70,4 @@ cargo build --release
 
 ## License
 
-[MIT/Apache-2.0/Your License Here]
+This project is licensed under the [MIT License](LICENSE).
