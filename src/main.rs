@@ -113,11 +113,11 @@ async fn chat_with_ai(message: &str, history: &mut VecDeque<(String, String)>) -
         context.push_str(&format!("User: {}\nAssistant: {}\n", user_msg, ai_msg));
     }
     
-    // Create the prompt with context
+    // Create the prompt with context and clear instructions
     let prompt = if context.is_empty() {
-        format!("User: {}\nAssistant:", message)
+        format!("You are ZorpAI, a helpful AI assistant. Respond directly to the user's question without including any 'User:' prefixes or meta-instructions in your response.\n\nUser: {}\nAssistant:", message)
     } else {
-        format!("{}\nUser: {}\nAssistant:", context, message)
+        format!("You are ZorpAI, a helpful AI assistant. Respond directly to the user's question without including any 'User:' prefixes or meta-instructions in your response.\n\n{}\nUser: {}\nAssistant:", context, message)
     };
     
     println!("\n🤖 ZorpAI is thinking...");
@@ -148,9 +148,12 @@ async fn chat_with_ai(message: &str, history: &mut VecDeque<(String, String)>) -
             if !line.is_empty() {
                 if let Ok(json_line) = serde_json::from_str::<Value>(line) {
                     if let Some(response_part) = json_line.get("response").and_then(Value::as_str) {
-                        print!("{}", response_part);
-                        io::stdout().flush()?;
-                        full_response.push_str(response_part);
+                        // Clean up the response - remove any "User:" prefixes or instructions
+                        if !response_part.trim().starts_with("User:") {
+                            print!("{}", response_part);
+                            io::stdout().flush()?;
+                            full_response.push_str(response_part);
+                        }
                     }
                 }
             }
