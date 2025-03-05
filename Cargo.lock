@@ -1611,6 +1611,7 @@ dependencies = [
 name = "zorpsh"
 version = "0.1.2"
 dependencies = [
+ "home",
  "reqwest",
  "rustyline",
  "serde_json",
