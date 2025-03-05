@@ -27,7 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rl = DefaultEditor::new()?;
     
     // Load command history from disk if available
-    let _ = rl.load_history(&config::HISTORY_FILE);
+    let history_path = config::history_file_path();
+    let _ = rl.load_history(&history_path);
     
     // Main input loop
     loop {
@@ -49,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else if input == "exit" {
                     println!("Goodbye, Zorp!");
                     // Save history before exiting
-                    let _ = rl.save_history(&config::HISTORY_FILE);
+                    let _ = rl.save_history(&config::history_file_path());
                     break;
                 } else if input.starts_with("chat") {
                     // Handle AI chat command
@@ -83,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // Save history when exiting normally
-    let _ = rl.save_history(&config::HISTORY_FILE);
+    let _ = rl.save_history(&config::history_file_path());
     
     Ok(())
 }

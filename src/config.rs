@@ -1,7 +1,10 @@
 // Configuration module - Central place for application constants and settings
 
-// History file location
-pub const HISTORY_FILE: &str = "~/.zorpsh_history";
+// History file location - Using a function to expand the home directory at runtime
+pub fn history_file_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    format!("{}/{}", home, ".zorpsh_history")
+}
 
 // AI configuration
 pub const MAX_HISTORY_SIZE: usize = 10;
