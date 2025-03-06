@@ -1,6 +1,18 @@
 // Main entry point for ZorpSh - An Intergalactic Command Line
 // This file orchestrates the different components but delegates specific
 // functionality to specialized modules
+mod completer; // Import the tab completion module
+
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+use rustyline::config::Config;
+use rustyline::CompletionType;
+use rustyline::validate::{MatchingBracketValidator, Validator};
+use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
+use rustyline::hint::{Hinter, HistoryHinter};
+use rustyline::completion::Completer;
+use crate::completer::ZorpCompleter;
+use rustyline::Helper;
 
 // Function to expand environment variables and tilde in a command string
 fn expand_variables(input: &str) -> String {
@@ -147,11 +159,8 @@ mod ai;
 mod config;
 
 // Re-export types that are used in the main module
-use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
 use std::collections::VecDeque;
 use std::env;
-use std::path::PathBuf;
 
 // The main function is marked with tokio::main to enable async/await syntax
 // at the top level of our application
@@ -163,9 +172,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize chat history with a fixed capacity to prevent unbounded memory growth
     let mut chat_history: VecDeque<(String, String)> = VecDeque::with_capacity(config::MAX_HISTORY_SIZE);
     
-    // Initialize the line editor for command input with history support
-    let mut rl = DefaultEditor::new()?;
+    // Initialize the line editor for command input with history and completion support
+    let config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .build();
     
+    // Create a new editor with our custom configuration
+    let mut rl = Editor::with_config(config)?;
+    
+    // Create a custom helper with all the components
+    struct MyHelper {
+        completer: ZorpCompleter,
+        highlighter: MatchingBracketHighlighter,
+        validator: MatchingBracketValidator,
+        hinter: HistoryHinter,
+    }
+    
+    // Implement the required traits
+    impl Completer for MyHelper {
+        type Candidate = <ZorpCompleter as Completer>::Candidate;
+        
+        fn complete(&self, line: &str, pos: usize, ctx: &rustyline::Context<'_>) 
+            -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+            self.completer.complete(line, pos, ctx)
+        }
+    }
+    
+    impl Hinter for MyHelper {
+        type Hint = <HistoryHinter as Hinter>::Hint;
+        
+        fn hint(&self, line: &str, pos: usize, ctx: &rustyline::Context<'_>) 
+            -> Option<Self::Hint> {
+            self.hinter.hint(line, pos, ctx)
+        }
+    }
+    
+    impl Highlighter for MyHelper {
+        fn highlight<'l>(&self, line: &'l str, pos: usize) -> std::borrow::Cow<'l, str> {
+            self.highlighter.highlight(line, pos)
+        }
+        
+        fn highlight_char(&self, line: &str, pos: usize) -> bool {
+            self.highlighter.highlight_char(line, pos)
+        }
+    }
+    
+    impl Validator for MyHelper {
+        fn validate(&self, ctx: &mut rustyline::validate::ValidationContext) 
+            -> rustyline::Result<rustyline::validate::ValidationResult> {
+            self.validator.validate(ctx)
+        }
+    }
+    
+    // Implement the Helper trait which combines all the above traits
+    impl Helper for MyHelper {}
+    
+    // Create and set the helper
+    let helper = MyHelper {
+        completer: ZorpCompleter,
+        highlighter: MatchingBracketHighlighter::new(),
+        hinter: HistoryHinter {},
+        validator: MatchingBracketValidator::new(),
+    };
+    
+    rl.set_helper(Some(helper));
+
     // Load command history from disk if available
     let history_path = config::history_file_path();
     let _ = rl.load_history(&history_path);
