@@ -2,6 +2,74 @@
 // This file orchestrates the different components but delegates specific
 // functionality to specialized modules
 
+// Function to expand environment variables and tilde in a command string
+fn expand_variables(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    
+    while let Some(c) = chars.next() {
+        if c == '~' && (chars.peek().is_none() || chars.peek().unwrap().is_whitespace() || chars.peek().unwrap() == &'/') {
+            // Replace ~ with home directory
+            if let Some(home) = home::home_dir() {
+                result.push_str(&home.to_string_lossy());
+            } else {
+                // If home directory can't be determined, keep the tilde
+                result.push('~');
+            }
+        } else if c == '$' {
+            let mut var_name = String::new();
+            
+            // Collect variable name (support for ${VAR} syntax)
+            let is_braced = chars.peek() == Some(&'{');
+            if is_braced {
+                chars.next(); // Skip the '{'
+                
+                while let Some(&next_char) = chars.peek() {
+                    if next_char == '}' {
+                        chars.next(); // Consume the '}'
+                        break;
+                    } else {
+                        var_name.push(chars.next().unwrap());
+                    }
+                }
+            } else {
+                // Simple $VAR syntax
+                while let Some(&next_char) = chars.peek() {
+                    if next_char.is_alphanumeric() || next_char == '_' {
+                        var_name.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            // Replace with environment variable value if it exists
+            if !var_name.is_empty() {
+                if let Ok(value) = env::var(&var_name) {
+                    result.push_str(&value);
+                } else {
+                    // If variable doesn't exist, keep the original syntax
+                    result.push('$');
+                    if is_braced {
+                        result.push('{');
+                    }
+                    result.push_str(&var_name);
+                    if is_braced {
+                        result.push('}');
+                    }
+                }
+            } else {
+                // Just a $ with no variable name
+                result.push('$');
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    
+    result
+}
+
 // Function to execute a chain of commands with && and || operators
 fn execute_command_chain(input: &str) {
     // Split the input by && and || operators while preserving the operators
@@ -44,8 +112,9 @@ fn execute_command_chain(input: &str) {
         return;
     }
     
-    // Execute the first command
-    let mut last_success = shell::execute_command(&commands[0]);
+    // Execute the first command with variable expansion
+    let expanded_cmd = expand_variables(&commands[0]);
+    let mut last_success = shell::execute_command(&expanded_cmd);
     
     // Execute subsequent commands based on the operators
     for i in 1..commands.len() {
@@ -55,13 +124,15 @@ fn execute_command_chain(input: &str) {
             "&&" => {
                 // Only execute if the previous command succeeded
                 if last_success {
-                    last_success = shell::execute_command(&commands[i]);
+                    let expanded_cmd = expand_variables(&commands[i]);
+                    last_success = shell::execute_command(&expanded_cmd);
                 }
             },
             "||" => {
                 // Only execute if the previous command failed
                 if !last_success {
-                    last_success = shell::execute_command(&commands[i]);
+                    let expanded_cmd = expand_variables(&commands[i]);
+                    last_success = shell::execute_command(&expanded_cmd);
                 }
             },
             _ => unreachable!()
@@ -79,6 +150,8 @@ mod config;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::collections::VecDeque;
+use std::env;
+use std::path::PathBuf;
 
 // The main function is marked with tokio::main to enable async/await syntax
 // at the top level of our application
