@@ -127,8 +127,10 @@ impl Completer for ZorpCompleter {
                                 if file_type.is_file() {
                                     if let Ok(cmd) = entry.file_name().into_string() {
                                         if cmd.starts_with(line) {
+                                            // Add ANSI escape code for cyan color for command completions
+                                            let display = format!("\x1b[36m{}\x1b[0m", cmd);
                                             matches.push(Pair {
-                                                display: cmd.clone(),
+                                                display,
                                                 replacement: cmd,
                                             });
                                         }

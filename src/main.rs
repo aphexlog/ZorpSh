@@ -9,7 +9,8 @@ use rustyline::config::Config;
 use rustyline::CompletionType;
 use rustyline::validate::{MatchingBracketValidator, Validator};
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
-use rustyline::hint::{Hinter, HistoryHinter};
+use rustyline::hint::{Hinter, HistoryHinter, Hint};
+use std::borrow::Cow;
 use rustyline::completion::Completer;
 use crate::completer::ZorpCompleter;
 use rustyline::Helper;
@@ -182,11 +183,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rl = Editor::with_config(config)?;
     
     // Create a custom helper with all the components
+    // Custom hinter that adds color to history suggestions
+    struct ColoredHistoryHinter {
+        inner: HistoryHinter,
+    }
+    
+    impl ColoredHistoryHinter {
+        fn new() -> Self {
+            Self {
+                inner: HistoryHinter {},
+            }
+        }
+    }
+    
+    // Custom hint type that wraps the original hint with color
+    struct ColoredHint(String);
+    
+    impl Hint for ColoredHint {
+        fn display(&self) -> &str {
+            &self.0
+        }
+        
+        fn completion(&self) -> Option<&str> {
+            // Return None to prevent automatic completion on tab
+            None
+        }
+    }
+    
+    impl Hinter for ColoredHistoryHinter {
+        type Hint = ColoredHint;
+        
+        fn hint(&self, line: &str, pos: usize, ctx: &rustyline::Context<'_>) -> Option<Self::Hint> {
+            self.inner.hint(line, pos, ctx).map(|h| {
+                // Apply cayman color (teal/cyan) to history suggestions
+                let colored_hint = format!("\x1b[96m{}\x1b[0m", h.display());
+                ColoredHint(colored_hint)
+            })
+        }
+    }
+    
     struct MyHelper {
         completer: ZorpCompleter,
         highlighter: MatchingBracketHighlighter,
         validator: MatchingBracketValidator,
-        hinter: HistoryHinter,
+        hinter: ColoredHistoryHinter,
     }
     
     // Implement the required traits
@@ -200,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     impl Hinter for MyHelper {
-        type Hint = <HistoryHinter as Hinter>::Hint;
+        type Hint = <ColoredHistoryHinter as Hinter>::Hint;
         
         fn hint(&self, line: &str, pos: usize, ctx: &rustyline::Context<'_>) 
             -> Option<Self::Hint> {
@@ -232,7 +272,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let helper = MyHelper {
         completer: ZorpCompleter,
         highlighter: MatchingBracketHighlighter::new(),
-        hinter: HistoryHinter {},
+        hinter: ColoredHistoryHinter::new(),
         validator: MatchingBracketValidator::new(),
     };
     
