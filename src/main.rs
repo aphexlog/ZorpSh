@@ -2,6 +2,73 @@
 // This file orchestrates the different components but delegates specific
 // functionality to specialized modules
 
+// Function to execute a chain of commands with && and || operators
+fn execute_command_chain(input: &str) {
+    // Split the input by && and || operators while preserving the operators
+    let mut commands = Vec::new();
+    let mut operators = Vec::new();
+    
+    // Simple parsing to handle && and || operators
+    let mut current_cmd = String::new();
+    let mut chars = input.chars().peekable();
+    
+    while let Some(c) = chars.next() {
+        if c == '&' && chars.peek() == Some(&'&') {
+            // Found &&
+            chars.next(); // consume the second &
+            if !current_cmd.trim().is_empty() {
+                commands.push(current_cmd.trim().to_string());
+                current_cmd = String::new();
+                operators.push("&&");
+            }
+        } else if c == '|' && chars.peek() == Some(&'|') {
+            // Found ||
+            chars.next(); // consume the second |
+            if !current_cmd.trim().is_empty() {
+                commands.push(current_cmd.trim().to_string());
+                current_cmd = String::new();
+                operators.push("||");
+            }
+        } else {
+            current_cmd.push(c);
+        }
+    }
+    
+    // Add the last command if there is one
+    if !current_cmd.trim().is_empty() {
+        commands.push(current_cmd.trim().to_string());
+    }
+    
+    // Execute the commands in sequence based on the operators
+    if commands.is_empty() {
+        return;
+    }
+    
+    // Execute the first command
+    let mut last_success = shell::execute_command(&commands[0]);
+    
+    // Execute subsequent commands based on the operators
+    for i in 1..commands.len() {
+        let operator = operators[i-1];
+        
+        match operator {
+            "&&" => {
+                // Only execute if the previous command succeeded
+                if last_success {
+                    last_success = shell::execute_command(&commands[i]);
+                }
+            },
+            "||" => {
+                // Only execute if the previous command failed
+                if !last_success {
+                    last_success = shell::execute_command(&commands[i]);
+                }
+            },
+            _ => unreachable!()
+        }
+    }
+}
+
 // Import our custom modules
 mod ui;
 mod shell;
@@ -63,8 +130,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Usage: chat <your message>");
                     }
                 } else {
-                    // Execute as shell command
-                    shell::execute_command(input);
+                    // Execute as shell command, possibly with chaining
+                    execute_command_chain(input);
                 }
             },
             // Handle various exit conditions

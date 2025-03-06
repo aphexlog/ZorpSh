@@ -9,11 +9,14 @@ use std::process::Command;
 /// # Arguments
 /// * `input` - The full command string to execute
 ///
+/// # Returns
+/// * `bool` - true if the command executed successfully, false otherwise
+///
 /// # Example
 /// ```
-/// execute_command("ls -la");
+/// let success = execute_command("ls -la");
 /// ```
-pub fn execute_command(input: &str) {
+pub fn execute_command(input: &str) -> bool {
     // Split the input into command and arguments
     let mut parts = input.split_whitespace();
     
@@ -23,8 +26,7 @@ pub fn execute_command(input: &str) {
         if command == "cd" {
             // Collect the remaining parts as arguments
             let args: Vec<&str> = parts.collect();
-            change_directory(&args);
-            return;
+            return change_directory(&args);
         }
         
         // Collect the remaining parts as arguments
@@ -38,10 +40,19 @@ pub fn execute_command(input: &str) {
 
         // Handle the result
         match status {
-            Ok(status) if !status.success() => println!("Process exited with: {}", status),
-            Ok(_) => {}, // Don't print anything for successful commands
-            Err(e) => println!("Zorp error: {}", e),
+            Ok(status) if !status.success() => {
+                println!("Process exited with: {}", status);
+                false
+            },
+            Ok(_) => true, // Don't print anything for successful commands
+            Err(e) => {
+                println!("Zorp error: {}", e);
+                false
+            },
         }
+    } else {
+        // No command provided
+        false
     }
 }
 
@@ -55,14 +66,14 @@ pub fn execute_command(input: &str) {
 /// - cd ~ (go to home directory)
 /// - cd .. (go up one directory)
 /// - cd $HOME or other env vars (expands environment variables)
-fn change_directory(args: &[&str]) {
+fn change_directory(args: &[&str]) -> bool {
     let target_dir = if args.is_empty() {
         // cd with no args goes to home directory
         match home::home_dir() {
             Some(path) => path,
             None => {
                 println!("Zorp error: Could not determine home directory");
-                return;
+                return false;
             }
         }
     } else {
@@ -74,7 +85,7 @@ fn change_directory(args: &[&str]) {
                 Some(path) => path,
                 None => {
                     println!("Zorp error: Could not determine home directory");
-                    return;
+                    return false;
                 }
             }
         } else if dir == ".." {
@@ -85,13 +96,13 @@ fn change_directory(args: &[&str]) {
                         Some(parent) => parent.to_path_buf(),
                         None => {
                             println!("Zorp error: Already at root directory");
-                            return;
+                            return false;
                         }
                     }
                 },
                 Err(e) => {
                     println!("Zorp error: Failed to get current directory: {}", e);
-                    return;
+                    return false;
                 }
             }
         } else if dir.starts_with("$") {
@@ -101,7 +112,7 @@ fn change_directory(args: &[&str]) {
                 Ok(value) => PathBuf::from(value),
                 Err(_) => {
                     println!("Zorp error: Environment variable {} not found", env_var);
-                    return;
+                    return false;
                 }
             }
         } else {
@@ -113,6 +124,9 @@ fn change_directory(args: &[&str]) {
     // Attempt to change directory
     if let Err(e) = env::set_current_dir(&target_dir) {
         println!("Zorp error: Failed to change directory: {}", e);
+        false
+    } else {
+        true
     }
 }
 
