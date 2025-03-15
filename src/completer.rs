@@ -97,7 +97,21 @@ impl Completer for ZorpCompleter {
                 
                 return Ok((start_pos, matches));
             }
-        } else if line.is_empty() || line.starts_with("./") {
+        } else if line.starts_with("ls ") {
+            // Directory completion for ls command
+            let parts: Vec<&str> = line.splitn(2, ' ').collect();
+            if parts.len() > 1 {
+                let dir_part = parts[1].trim();
+                let start_pos = "ls ".len();
+                
+                // Determine the directory to look in
+                let search_dir = if dir_part.starts_with('/') {
+                    // Absolute path
+                    if dir_part.contains('/') {
+                        let parent = Path::new(dir_part).parent().unwrap_or(Path::new("/"));
+                        parent.to_path_buf()
+                    }
+        else if line.is_empty() || line.starts_with("./") {
             // Directory and file completion for current directory
             if let Ok(entries) = fs::read_dir(env::current_dir().unwrap_or_default()) {
                 for entry in entries.flatten() {
