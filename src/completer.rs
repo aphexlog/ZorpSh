@@ -110,8 +110,73 @@ impl Completer for ZorpCompleter {
                     if dir_part.contains('/') {
                         let parent = Path::new(dir_part).parent().unwrap_or(Path::new("/"));
                         parent.to_path_buf()
+                    } else {
+                        Path::new("/").to_path_buf()
                     }
-        else if line.is_empty() || line.starts_with("./") {
+                } else if dir_part.starts_with("~/") || dir_part == "~" {
+                    // Home directory
+                    if let Some(home) = home::home_dir() {
+                        if dir_part.len() > 2 {
+                            home.join(&dir_part[2..])
+                        } else {
+                            home
+                        }
+                    } else {
+                        env::current_dir().unwrap_or_default()
+                    }
+                } else {
+                    // Relative to current directory
+                    if dir_part.contains('/') && !dir_part.ends_with('/') {
+                        let parent = Path::new(dir_part).parent().unwrap_or(Path::new(""));
+                        env::current_dir().unwrap_or_default().join(parent)
+                    } else {
+                        env::current_dir().unwrap_or_default()
+                    }
+                };
+                
+                // Get the prefix to match against
+                let prefix = if dir_part.contains('/') && !dir_part.ends_with('/') {
+                    Path::new(dir_part)
+                        .file_name()
+                        .map(|f| f.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                };
+                
+                // Read directory entries
+                if let Ok(entries) = fs::read_dir(search_dir) {
+                    for entry in entries.flatten() {
+                        if let Ok(file_type) = entry.file_type() {
+                            if file_type.is_dir() {
+                                if let Ok(file_name) = entry.file_name().into_string() {
+                                    if file_name.starts_with(&prefix) {
+                                        // For directory completion, add a trailing slash
+                                        let replacement = if dir_part.contains('/') && !dir_part.ends_with('/') {
+                                            let mut path = dir_part.to_string();
+                                            if let Some(last_part) = Path::new(&path).file_name() {
+                                                let last_part_str = last_part.to_string_lossy();
+                                                path = path.trim_end_matches(&*last_part_str).to_string();
+                                            }
+                                            format!("{}{}/", path, file_name)
+                                        } else {
+                                            format!("{}/", file_name)
+                                        };
+                                        
+                                        matches.push(Pair {
+                                            display: format!("{}/", file_name),
+                                            replacement,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return Ok((start_pos, matches));
+            }
+        } else if line.is_empty() || line.starts_with("./") {
             // Directory and file completion for current directory
             if let Ok(entries) = fs::read_dir(env::current_dir().unwrap_or_default()) {
                 for entry in entries.flatten() {
